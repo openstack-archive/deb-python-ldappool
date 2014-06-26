@@ -1,0 +1,5 @@
+python-ldappool (1.0-1) unstable; urgency=medium
+
+  * Initial release. (Closes: #752753)
+
+ -- Thomas Goirand <zigo@debian.org>  Thu, 26 Jun 2014 16:10:51 +0800
