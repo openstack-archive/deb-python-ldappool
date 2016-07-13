@@ -35,12 +35,37 @@
 # ***** END LICENSE BLOCK *****
 """ LDAP Connection Pool.
 """
-import time
+import codecs
 from contextlib import contextmanager
+import logging
 from threading import RLock
+import time
 
-from ldap.ldapobject import ReconnectLDAPObject
 import ldap
+from ldap.ldapobject import ReconnectLDAPObject
+import six
+
+log = logging.getLogger(__name__)
+_utf8_encoder = codecs.getencoder('utf-8')
+
+
+def utf8_encode(value):
+    """Encode a basestring to UTF-8.
+
+    If the string is unicode encode it to UTF-8, if the string is
+    str then assume it's already encoded. Otherwise raise a TypeError.
+
+    :param value: A basestring
+    :returns: UTF-8 encoded version of value
+    :raises TypeError: If value is not basestring
+    """
+    if isinstance(value, six.text_type):
+        return _utf8_encoder(value)[0]
+    elif isinstance(value, six.binary_type):
+        return value
+    else:
+        raise TypeError("bytes or Unicode expected, got %s"
+                        % type(value).__name__)
 
 
 class MaxConnectionReachedError(Exception):
@@ -54,7 +79,8 @@ class BackendError(Exception):
 
 
 class StateConnector(ReconnectLDAPObject):
-    """Just remembers who is connected, and if connected"""
+    """Just remembers who is connected, and if connected."""
+
     def __init__(self, *args, **kw):
         ReconnectLDAPObject.__init__(self, *args, **kw)
         self.connected = False
@@ -117,6 +143,7 @@ class ConnectionManager(object):
 
     Provides a context manager for LDAP connectors.
     """
+
     def __init__(self, uri, bind=None, passwd=None, size=10, retry_max=3,
                  retry_delay=.1, use_tls=False, timeout=-1,
                  connector_cls=StateConnector, use_pool=True,
@@ -139,7 +166,8 @@ class ConnectionManager(object):
         return len(self._pool)
 
     def _match(self, bind, passwd):
-        passwd = passwd.encode('utf8')
+        if passwd is not None:
+            passwd = utf8_encode(passwd)
         with self._pool_lock:
             inactives = []
 
@@ -155,7 +183,8 @@ class ConnectionManager(object):
                     try:
                         conn.unbind_s()
                     except Exception:
-                        pass  # XXX we will see later
+                        log.debug('Failure attempting to unbind after '
+                                  'timeout; should be harmless', exc_info=True)
 
                     self._pool.remove(conn)
                     continue
@@ -173,7 +202,9 @@ class ConnectionManager(object):
                     try:
                         self._bind(conn, bind, passwd)
                         return conn
-                    except:
+                    except Exception:
+                        log.debug('Removing connection from pool after '
+                                  'failure to rebind', exc_info=True)
                         self._pool.remove(conn)
 
                 return None
@@ -184,6 +215,12 @@ class ConnectionManager(object):
     def _bind(self, conn, bind, passwd):
         # let's bind
         if self.use_tls:
+            try:
+                conn.start_tls_s()
+            except Exception:
+                raise BackendError('Could not activate TLS on established '
+                                   'connection with %s' % self.uri,
+                                   backend=conn)
             conn.start_tls_s()
 
         if bind is not None:
@@ -192,16 +229,21 @@ class ConnectionManager(object):
         conn.active = True
 
     def _create_connector(self, bind, passwd):
-        """Creates a connector, binds it, and returns it
+        """Creates a connector, binds it, and returns it.
 
-        Args:
-            - bind: login
-            - passwd: password
+        :param bind: user login
+        :type bind: string
+        :param passwd: user password
+        :type passwd: string
+        :returns: StateConnector
+        :raises BackendError: If unable to connect to LDAP
         """
         tries = 0
         connected = False
-        passwd = passwd.encode('utf8')
+        if passwd is not None:
+            passwd = utf8_encode(passwd)
         exc = None
+        conn = None
 
         # trying retry_max times in a row with a fresh connector
         while tries < self.retry_max and not connected:
@@ -211,8 +253,16 @@ class ConnectionManager(object):
                 conn.timeout = self.timeout
                 self._bind(conn, bind, passwd)
                 connected = True
-            except ldap.LDAPError, exc:
+            except ldap.LDAPError as error:
+                exc = error
                 time.sleep(self.retry_delay)
+                if tries < self.retry_max:
+                    log.info('Failure attempting to create and bind '
+                             'connector; will retry after %r seconds',
+                             self.retry_delay, exc_info=True)
+                else:
+                    log.error('Failure attempting to create and bind '
+                              'connector', exc_info=True)
                 tries += 1
 
         if not connected:
@@ -273,17 +323,20 @@ class ConnectionManager(object):
             connection.unbind_ext_s()
         except ldap.LDAPError:
             # avoid error on invalid state
-            pass
+            log.debug('Failure attempting to unbind on release; '
+                      'should be harmless', exc_info=True)
 
     @contextmanager
     def connection(self, bind=None, passwd=None):
-        """Creates a context'ed connector, binds it, and returns it
+        """Creates a context'ed connector, binds it, and returns it.
 
-        Args:
-            - bind: login
-            - passwd: password
+        :param bind: user login
+        :type bind: string
+        :param passwd: user password
+        :type passwd: string
+        :returns: StateConnector
+        :raises MaxConnectionReachedError: If unable to connect to LDAP
         """
-
         tries = 0
         conn = None
         while tries < self.retry_max:
@@ -312,18 +365,18 @@ class ConnectionManager(object):
             self._release_connection(conn)
 
     def purge(self, bind, passwd=None):
-        """Purge a connector
+        """Purge a connector.
 
-        Args:
-            - bind: login
-            - passwd: password
+        :param bind: user login
+        :type bind: string
+        :param passwd: user password
+        :type passwd: string
         """
-
         if self.use_pool:
             return
 
         if passwd is not None:
-            passwd = passwd.encode('utf8')
+            passwd = utf8_encode(passwd)
 
         with self._pool_lock:
             for conn in list(self._pool):
@@ -337,5 +390,6 @@ class ConnectionManager(object):
                     conn.unbind_ext_s()
                 except ldap.LDAPError:
                     # invalid state
-                    pass
+                    log.debug('Failure attempting to unbind on purge; '
+                              'should be harmless', exc_info=True)
                 self._pool.remove(conn)
