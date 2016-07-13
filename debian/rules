@@ -1,32 +1,17 @@
 #!/usr/bin/make -f
 
-PYTHONS:=$(shell pyversions -vr)
-PYTHON3S:=$(shell py3versions -vr)
-
 UPSTREAM_GIT := https://github.com/openstack/ldappool.git
 -include /usr/share/openstack-pkg-tools/pkgos.make
 
 %:
-	dh $@ --buildsystem=python_distutils --with python2
+	dh $@ --buildsystem=python_distutils --with python2,python3
 
 override_dh_install:
-	set -e && for pyvers in $(PYTHONS); do \
-		python$$pyvers setup.py install --install-layout=deb \
-			--root $(CURDIR)/debian/python-ldappool; \
-	done
-#	set -e && for pyvers in $(PYTHON3S); do \
-#		python$$pyvers setup.py install --install-layout=deb \
-#			--root $(CURDIR)/debian/python3-ldappool; \
-#	done
+	pkgos-dh_auto_install
 
 override_dh_auto_test:
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
-	set -ex && for pyvers in $(PYTHONS) ; do \
-		PYTHON=python$$pyvers nosetests || true ; \
-	done
-#	set -ex && for pyvers in $(PYTHON3S) ; do \
-#		PYTHON=python$$pyvers nosetests3 ; \
-#	done
+	pkgos-dh_auto_test
 endif
 
 override_dh_clean:
