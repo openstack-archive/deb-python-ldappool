@@ -1,9 +1,14 @@
-python-ldappool (1.0-2) UNRELEASED; urgency=medium
+python-ldappool (2.0.0-1) experimental; urgency=medium
 
+  [ Ondřej Nový ]
   * Fixed VCS URLs (https).
   * d/rules: Changed UPSTREAM_GIT protocol to https
 
- -- Ondřej Nový <novy@ondrej.org>  Sun, 28 Feb 2016 15:41:00 +0100
+  [ Thomas Goirand ]
+  * New upstream release.
+  * Fixed upstream git URL.
+
+ -- Thomas Goirand <zigo@debian.org>  Wed, 13 Jul 2016 17:22:01 +0200
 
 python-ldappool (1.0-1) unstable; urgency=medium
 

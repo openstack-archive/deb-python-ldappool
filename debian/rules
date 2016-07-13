@@ -3,7 +3,7 @@
 PYTHONS:=$(shell pyversions -vr)
 PYTHON3S:=$(shell py3versions -vr)
 
-UPSTREAM_GIT := https://github.com/mozilla-services/ldappool.git
+UPSTREAM_GIT := https://github.com/openstack/ldappool.git
 -include /usr/share/openstack-pkg-tools/pkgos.make
 
 %:
