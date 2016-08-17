@@ -1,0 +1,8 @@
+Code-Review+2: Morgan Fainberg <morgan.fainberg@gmail.com>
+Workflow+1: Morgan Fainberg <morgan.fainberg@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 18 May 2016 02:46:40 +0000
+Reviewed-on: https://review.openstack.org/317806
+Project: openstack/deb-python-ldappool
+Branch: refs/heads/master
