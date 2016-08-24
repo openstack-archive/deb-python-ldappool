@@ -1,4 +1,5 @@
 [gerrit]
 host=review.openstack.org
 port=29418
-project=openstack/ldappool.git
+project=openstack/deb-python-ldappool.git
+defaultbranch=debian/newton
