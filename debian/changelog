@@ -1,4 +1,4 @@
-python-ldappool (2.0.0-1) experimental; urgency=medium
+python-ldappool (2.0.0-1) unstable; urgency=medium
 
   [ Ondřej Nový ]
   * Fixed VCS URLs (https).
@@ -11,6 +11,7 @@ python-ldappool (2.0.0-1) experimental; urgency=medium
   * Added Python 3 support.
   * Using modernities from openstack-pkg-tools.
   * Removed non-active uploaders.
+  * Now uses python-pyldap as (build-)depends.
 
  -- Thomas Goirand <zigo@debian.org>  Wed, 13 Jul 2016 17:22:01 +0200
 
